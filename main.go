@@ -48,9 +48,7 @@ func setup(ctx *cli.Context) error {
 }
 
 func teardown(ctx *cli.Context) error {
-	// todo: might make more sense to leave this to the user and check for outdated targets when accessing the cache
-	err := fanCache.Clean()
-	return err
+	return nil
 }
 
 func run(ctx *cli.Context) error {
@@ -94,6 +92,7 @@ func run(ctx *cli.Context) error {
 		return cli.Exit("failed to check cache for target: "+err.Error(), 1)
 	}
 
+	// todo: move this into target (better separation of concerns)
 	cmd := exec.CommandContext(ctx.Context, target.Path, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

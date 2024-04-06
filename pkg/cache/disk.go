@@ -87,6 +87,21 @@ func (c *diskCache) GetTargetForUrl(u string) (fan.Target, error) {
 		return fan.Target{}, fmt.Errorf("failed unmarshalling target metadata: %w", err)
 	}
 
+	invalidAfter := target.CachedAt.Add(target.InvalidateAfter)
+
+	fmt.Printf("=== [diskCache GetTargetForUrl]     cachedAt: [%v]\n", target.CachedAt)
+	fmt.Printf("=== [diskCache GetTargetForUrl] invalidAfter: [%v]\n", invalidAfter)
+	fmt.Printf("=== [diskCache GetTargetForUrl]          now: [%v]\n", time.Now().UTC())
+	fmt.Println()
+
+	if time.Now().UTC().After(invalidAfter) {
+		if err := os.RemoveAll(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fan.Target{}, fmt.Errorf("unable to clean target from cache")
+		}
+
+		return fan.Target{}, ErrNotFound
+	}
+
 	target.Path = filepath.Join(path, DefaultTargetExecutableFile)
 
 	return target, nil
@@ -107,7 +122,7 @@ func (c *diskCache) cleanTargetDir(dir string) error {
 
 	invalidAfter := target.CachedAt.Add(target.InvalidateAfter)
 
-	if time.Now().After(invalidAfter) {
+	if time.Now().UTC().After(invalidAfter) {
 		if err := os.RemoveAll(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("unable to clean target from cache")
 		}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	fan "github.com/joshmeranda/fan/pkg"
 	"github.com/joshmeranda/fan/pkg/cache"
@@ -35,7 +36,7 @@ func TestTarget(t *testing.T) {
 	target := fan.Target{
 		Url:             "http://example.com",
 		Path:            t.Name(),
-		InvalidateAfter: 0, // will be cleaned up after next call to c.Clean()
+		InvalidateAfter: time.Second * 1, // will be cleaned up after next call to c.Clean()
 	}
 
 	_, err = c.GetTargetForUrl(target.Url)
@@ -44,16 +45,18 @@ func TestTarget(t *testing.T) {
 	}
 
 	if err := c.AddTarget(target); err != nil {
-		t.Fatal("expected success but found: %w", err)
+		t.Fatalf("expected success but found: %s", err)
 	}
 
 	target, err = c.GetTargetForUrl(target.Url)
 	if err != nil {
-		t.Fatal("expected success but found: %w", err)
+		t.Fatalf("expected success but found: %s", err)
 	}
 
+	time.Sleep(time.Second)
+
 	if err := c.Clean(); err != nil {
-		t.Fatal("expected success but found: %w", err)
+		t.Fatalf("expected success but found: %s", err)
 	}
 
 	_, err = c.GetTargetForUrl(target.Url)
