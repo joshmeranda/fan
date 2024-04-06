@@ -64,7 +64,7 @@ func (c *diskCache) AddTarget(target fan.Target) error {
 		return fmt.Errorf("failed writing target metadata to cache: %w", err)
 	}
 
-	return fmt.Errorf("not implemented")
+	return nil
 }
 
 func (c *diskCache) GetTargetForUrl(u string) (fan.Target, error) {
@@ -118,8 +118,6 @@ func (c *diskCache) cleanTargetDir(dir string) error {
 
 func (c *diskCache) Clean() error {
 	files, err := os.ReadDir(c.CacheDir)
-	n := err.(*os.PathError).Err.(syscall.Errno)
-	_ = n
 	if err != nil && err.(*os.PathError).Err.(syscall.Errno) != syscall.ENOENT {
 		return fmt.Errorf("failed to read cache directory: %w", err)
 	}

@@ -70,11 +70,25 @@ func run(ctx *cli.Context) error {
 	if errors.Is(err, cache.ErrNotFound) {
 		log.Debug("target not in cache", "url", url)
 
+		target = fan.Target{
+			Url:             url,
+			InvalidateAfter: config.DefaultInvalidateAfter,
+		}
+
 		target.Path, err = fan.FetchToPath(url)
 		if err != nil {
 			return cli.Exit("failed to fetch target: "+err.Error(), 1)
 		}
 		defer os.Remove(target.Path)
+
+		if err := fanCache.AddTarget(target); err != nil {
+			return cli.Exit("failed to add target to cache: "+err.Error(), 1)
+		}
+
+		target, err = fanCache.GetTargetForUrl(url)
+		if err != nil {
+			return cli.Exit("failed to get target from cache: "+err.Error(), 1)
+		}
 	} else if err != nil {
 		return cli.Exit("failed to check cache for target: "+err.Error(), 1)
 	}
