@@ -19,6 +19,7 @@ func createTemp() (*os.File, error) {
 }
 
 // todo: check content-type header
+// todo: add authentication stuff (certs)
 func FetchToPath(u string) (string, error) {
 	out, err := createTemp()
 	if err != nil {

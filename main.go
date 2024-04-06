@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -28,33 +29,29 @@ func run(ctx *cli.Context) error {
 		return cli.Exit("no target specified", 1)
 	}
 
-	name := ctx.Args().First()
+	raw := ctx.Args().First()
 	args := ctx.Args().Tail()
 
-	target, ok := config.GetTargetForAlias(name)
-	if !ok {
-		target = Target{
-			Url:             name, // cmd is assumed to be a valid URL if no alias is assigned
-			InvalidateAfter: config.DefaultInvalidateAfter,
-		}
+	var url string
+
+	if unaliased, found := config.Aliases[raw]; found {
+		url = unaliased
 	}
 
-	path, err := cache.GetTargetPath(target)
-	if err != nil {
-		return cli.Exit("failed to check cache for target: "+err.Error(), 1)
-	}
+	target, err := cache.GetTargetForUrl(url)
+	if errors.Is(err, ErrNotFound) {
+		log.Debug("target not in cache")
 
-	if path == "" {
-		log.Debug("target not in cache, fetching")
-
-		path, err = FetchToPath(target.Url)
+		target.Path, err = FetchToPath(target.Url)
 		if err != nil {
 			return cli.Exit("failed to fetch target: "+err.Error(), 1)
 		}
-		defer os.Remove(path)
+		defer os.Remove(target.Path)
+	} else if err != nil {
+		return cli.Exit("failed to check cache for target: "+err.Error(), 1)
 	}
 
-	cmd := exec.CommandContext(ctx.Context, path, args...)
+	cmd := exec.CommandContext(ctx.Context, target.Path, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
