@@ -1,4 +1,4 @@
-package main
+package cache
 
 import (
 	"errors"
@@ -6,8 +6,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"syscall"
 	"time"
 
+	fan "github.com/joshmeranda/fan/pkg"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,16 +22,22 @@ var (
 	ErrNotFound = fmt.Errorf("not found")
 )
 
-type Cache struct {
+type diskCache struct {
 	CacheDir string
 }
 
-func (c *Cache) pathForTarget(target Target) string {
+func NewDiskCache(cacheDir string) Cache {
+	return &diskCache{
+		CacheDir: cacheDir,
+	}
+}
+
+func (c *diskCache) pathForTarget(target fan.Target) string {
 	return path.Join(c.CacheDir, fmt.Sprintf("%d", target.Hash()))
 }
 
 // AddTarget adds the given target to the cache, using path as the on-disk executable location.
-func (c *Cache) AddTarget(target Target) error {
+func (c *diskCache) AddTarget(target fan.Target) error {
 	path := c.pathForTarget(target)
 	executablePath := filepath.Join(path, DefaultTargetExecutableFile)
 	metadataPath := filepath.Join(path, DefaultTargetMetadataFile)
@@ -59,24 +67,24 @@ func (c *Cache) AddTarget(target Target) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (c *Cache) GetTargetForUrl(u string) (Target, error) {
-	target := Target{Url: u}
+func (c *diskCache) GetTargetForUrl(u string) (fan.Target, error) {
+	target := fan.Target{Url: u}
 	path := c.pathForTarget(target)
 
 	if exists, err := Exists(path); err != nil {
-		return Target{}, fmt.Errorf("failed checking for cached target: %w", err)
+		return fan.Target{}, fmt.Errorf("failed checking for cached target: %w", err)
 	} else if !exists {
-		return Target{}, ErrNotFound
+		return fan.Target{}, ErrNotFound
 	}
 
 	metadataPath := filepath.Join(path, DefaultTargetMetadataFile)
 	data, err := os.ReadFile(metadataPath)
 	if err != nil {
-		return Target{}, fmt.Errorf("failed reading target metadata: %w", err)
+		return fan.Target{}, fmt.Errorf("failed reading target metadata: %w", err)
 	}
 
 	if err := yaml.Unmarshal(data, &target); err != nil {
-		return Target{}, fmt.Errorf("failed unmarshalling target metadata: %w", err)
+		return fan.Target{}, fmt.Errorf("failed unmarshalling target metadata: %w", err)
 	}
 
 	target.Path = filepath.Join(path, DefaultTargetExecutableFile)
@@ -84,10 +92,10 @@ func (c *Cache) GetTargetForUrl(u string) (Target, error) {
 	return target, nil
 }
 
-func (c *Cache) cleanTargetDir(dir string) error {
+func (c *diskCache) cleanTargetDir(dir string) error {
 	metadataPath := filepath.Join(dir, DefaultTargetMetadataFile)
 
-	var target Target
+	var target fan.Target
 	data, err := os.ReadFile(metadataPath)
 	if err != nil {
 		return fmt.Errorf("failed reading target metadata: %w", err)
@@ -108,9 +116,11 @@ func (c *Cache) cleanTargetDir(dir string) error {
 	return nil
 }
 
-func (c *Cache) Clean() error {
+func (c *diskCache) Clean() error {
 	files, err := os.ReadDir(c.CacheDir)
-	if err != nil {
+	n := err.(*os.PathError).Err.(syscall.Errno)
+	_ = n
+	if err != nil && err.(*os.PathError).Err.(syscall.Errno) != syscall.ENOENT {
 		return fmt.Errorf("failed to read cache directory: %w", err)
 	}
 

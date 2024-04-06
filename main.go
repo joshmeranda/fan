@@ -6,22 +6,50 @@ import (
 	"os"
 	"os/exec"
 
+	fan "github.com/joshmeranda/fan/pkg"
+	"github.com/joshmeranda/fan/pkg/cache"
 	"github.com/urfave/cli/v2"
+	"gopkg.in/yaml.v3"
 )
 
 var (
 	log *slog.Logger
 
-	cache  *Cache
-	config Config
+	fanCache cache.Cache
+	config   Config
 )
 
-func loadCache(ctx *cli.Context) error {
+func setup(ctx *cli.Context) error {
+	switch configPath := ctx.String("config"); configPath {
+	case "":
+		config = DefaultConfig()
+	default:
+		data, err := os.ReadFile(configPath)
+
+		if errors.Is(err, os.ErrNotExist) {
+			config = DefaultConfig()
+		} else if err != nil {
+			return cli.Exit("failed to read config: "+err.Error(), 1)
+		} else {
+			if err := yaml.Unmarshal(data, &config); err != nil {
+				return cli.Exit("failed to parse config: "+err.Error(), 1)
+			}
+		}
+	}
+
+	if config.CacheDir == "" {
+		log.Debug("no cache specified, using noop cache")
+		fanCache = cache.NewNoopCache()
+	} else {
+		fanCache = cache.NewDiskCache(config.CacheDir)
+	}
+
 	return nil
 }
 
-func cleanCache(ctx *cli.Context) error {
-	return nil
+func teardown(ctx *cli.Context) error {
+	err := fanCache.Clean()
+	return err
 }
 
 func run(ctx *cli.Context) error {
@@ -32,17 +60,17 @@ func run(ctx *cli.Context) error {
 	raw := ctx.Args().First()
 	args := ctx.Args().Tail()
 
-	var url string
+	url := raw
 
 	if unaliased, found := config.Aliases[raw]; found {
 		url = unaliased
 	}
 
-	target, err := cache.GetTargetForUrl(url)
-	if errors.Is(err, ErrNotFound) {
-		log.Debug("target not in cache")
+	target, err := fanCache.GetTargetForUrl(url)
+	if errors.Is(err, cache.ErrNotFound) {
+		log.Debug("target not in cache", "url", url)
 
-		target.Path, err = FetchToPath(target.Url)
+		target.Path, err = fan.FetchToPath(url)
 		if err != nil {
 			return cli.Exit("failed to fetch target: "+err.Error(), 1)
 		}
@@ -64,7 +92,9 @@ func run(ctx *cli.Context) error {
 }
 
 func main() {
-	log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+	log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
 
 	app := cli.App{
 		Name:  "fan",
@@ -72,9 +102,15 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:   "run",
-				Before: loadCache,
+				Before: setup,
 				Action: run,
-				After:  cleanCache,
+				After:  teardown,
+			},
+		},
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "config",
+				Value: DefaultConfigPath(),
 			},
 		},
 	}
