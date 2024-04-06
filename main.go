@@ -48,6 +48,7 @@ func setup(ctx *cli.Context) error {
 }
 
 func teardown(ctx *cli.Context) error {
+	// todo: might make more sense to leave this to the user and check for outdated targets when accessing the cache
 	err := fanCache.Clean()
 	return err
 }
