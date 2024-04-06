@@ -89,11 +89,6 @@ func (c *diskCache) GetTargetForUrl(u string) (fan.Target, error) {
 
 	invalidAfter := target.CachedAt.Add(target.InvalidateAfter)
 
-	fmt.Printf("=== [diskCache GetTargetForUrl]     cachedAt: [%v]\n", target.CachedAt)
-	fmt.Printf("=== [diskCache GetTargetForUrl] invalidAfter: [%v]\n", invalidAfter)
-	fmt.Printf("=== [diskCache GetTargetForUrl]          now: [%v]\n", time.Now().UTC())
-	fmt.Println()
-
 	if time.Now().UTC().After(invalidAfter) {
 		if err := os.RemoveAll(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fan.Target{}, fmt.Errorf("unable to clean target from cache")

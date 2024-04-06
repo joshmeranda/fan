@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"os"
-	"os/exec"
 
 	fan "github.com/joshmeranda/fan/pkg"
 	"github.com/joshmeranda/fan/pkg/cache"
@@ -92,14 +91,8 @@ func run(ctx *cli.Context) error {
 		return cli.Exit("failed to check cache for target: "+err.Error(), 1)
 	}
 
-	// todo: move this into target (better separation of concerns)
-	cmd := exec.CommandContext(ctx.Context, target.Path, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	if err := cmd.Run(); err != nil {
-		return err
+	if err := target.Run(ctx.Context, args); err != nil {
+		return cli.Exit(err, 1)
 	}
 
 	return nil

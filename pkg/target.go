@@ -1,6 +1,9 @@
 package fan
 
 import (
+	"context"
+	"os"
+	"os/exec"
 	"time"
 
 	"github.com/cespare/xxhash"
@@ -24,4 +27,18 @@ func (t Target) Hash() uint64 {
 	h.Write([]byte(t.Url))
 
 	return h.Sum64()
+}
+
+func (t Target) Run(ctx context.Context, args []string) error {
+	// todo: move this into target (better separation of concerns)
+	cmd := exec.CommandContext(ctx, t.Path, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
 }
