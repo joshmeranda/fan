@@ -73,7 +73,7 @@ func run(ctx *cli.Context) error {
 			InvalidateAfter: config.DefaultInvalidateAfter,
 		}
 
-		target.Path, err = fan.FetchToPath(url)
+		target.Path, err = fan.Fetch(url)
 		if err != nil {
 			return cli.Exit("failed to fetch target: "+err.Error(), 1)
 		}
