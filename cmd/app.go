@@ -106,6 +106,29 @@ func actionCleanCache(ctx *cli.Context) error {
 	return nil
 }
 
+func actionAlias(ctx *cli.Context) error {
+	if ctx.NArg() != 2 {
+		return cli.Exit("expected alais and url", 1)
+	}
+
+	alias := ctx.Args().First()
+	url := ctx.Args().Get(1)
+
+	config.Aliases[alias] = url
+
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return cli.Exit("failed to marshal config: "+err.Error(), 1)
+	}
+
+	if err := os.WriteFile(ctx.String("config"), data, 0644); err != nil {
+		return cli.Exit("failed to write config: "+err.Error(), 1)
+	}
+
+	return nil
+
+}
+
 func App() cli.App {
 	return cli.App{
 		Name:  "fan",
@@ -120,6 +143,11 @@ func App() cli.App {
 				Name:   "clean-cache",
 				Before: setup,
 				Action: actionCleanCache,
+			},
+			{
+				Name:   "alias",
+				Before: setup,
+				Action: actionAlias,
 			},
 		},
 		Flags: []cli.Flag{

@@ -53,9 +53,6 @@ func setup(t *testing.T) (string, string, string) {
 	config := cmd.Config{
 		DefaultInvalidateAfter: time.Second * 1,
 		CacheDir:               fmt.Sprintf("%s.cache", t.Name()),
-		Aliases: map[string]string{
-			"script": fmt.Sprintf("http://:%d/script", port),
-		},
 	}
 
 	data, err := yaml.Marshal(config)
@@ -130,6 +127,10 @@ func TestMain(t *testing.T) {
 	})
 
 	t.Run("Aliased", func(t *testing.T) {
+		if err := app.Run([]string{"fan", "--config", configPath, "alias", "script", fmt.Sprintf("http://%s/script", addr)}); err != nil {
+			t.Fatalf("failed to add alias: %s", err)
+		}
+
 		if err := app.Run([]string{"fan", "--config", configPath, "run", "script"}); err != nil {
 			t.Fatalf("app failed with error: %s", err)
 		}
