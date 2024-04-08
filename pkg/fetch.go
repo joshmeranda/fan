@@ -34,10 +34,6 @@ func FetchToPath(u string, path string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch: %s", resp.Status)
-	}
-
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to write to file: %w", err)
