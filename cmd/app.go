@@ -50,11 +50,7 @@ func setup(ctx *cli.Context) error {
 	return nil
 }
 
-func teardown(ctx *cli.Context) error {
-	return nil
-}
-
-func run(ctx *cli.Context) error {
+func actionRun(ctx *cli.Context) error {
 	if ctx.NArg() == 0 {
 		return cli.Exit("no target specified", 1)
 	}
@@ -102,6 +98,14 @@ func run(ctx *cli.Context) error {
 	return nil
 }
 
+func actionCleanCache(ctx *cli.Context) error {
+	if err := fanCache.Clean(); err != nil {
+		return cli.Exit("failed to clean cache: "+err.Error(), 1)
+	}
+
+	return nil
+}
+
 func App() cli.App {
 	return cli.App{
 		Name:  "fan",
@@ -110,8 +114,12 @@ func App() cli.App {
 			{
 				Name:   "run",
 				Before: setup,
-				Action: run,
-				After:  teardown,
+				Action: actionRun,
+			},
+			{
+				Name:   "clean-cache",
+				Before: setup,
+				Action: actionCleanCache,
 			},
 		},
 		Flags: []cli.Flag{

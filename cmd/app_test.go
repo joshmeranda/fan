@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/cespare/xxhash"
 	"github.com/joshmeranda/fan/cmd"
@@ -17,7 +18,7 @@ import (
 
 func setup(t *testing.T) (string, string, string) {
 	http.HandleFunc("/script", func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "#!/usr/bin/bash\necho Hello World")
+		io.WriteString(w, "#!/usr/bin/bash\nexit 0")
 	})
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -49,10 +50,12 @@ func setup(t *testing.T) (string, string, string) {
 	}
 
 	configPath := fmt.Sprintf("%s.config", t.Name())
-	config := cmd.DefaultConfig()
-	config.CacheDir = fmt.Sprintf("%s.cache", t.Name())
-	config.Aliases = map[string]string{
-		"script": fmt.Sprintf("http://:%d/script", port),
+	config := cmd.Config{
+		DefaultInvalidateAfter: time.Second * 1,
+		CacheDir:               fmt.Sprintf("%s.cache", t.Name()),
+		Aliases: map[string]string{
+			"script": fmt.Sprintf("http://:%d/script", port),
+		},
 	}
 
 	data, err := yaml.Marshal(config)
@@ -98,7 +101,7 @@ func TestMain(t *testing.T) {
 
 	t.Run("Cache is empty", func(t *testing.T) {
 		if Exists(t, cacheDir) {
-			t.Fatalf("cache dir exists: %s", targetCacheDir)
+			t.Fatalf("cache dir should exist (yet): %s", targetCacheDir)
 		}
 	})
 
@@ -129,6 +132,17 @@ func TestMain(t *testing.T) {
 	t.Run("Aliased", func(t *testing.T) {
 		if err := app.Run([]string{"fan", "--config", configPath, "run", "script"}); err != nil {
 			t.Fatalf("app failed with error: %s", err)
+		}
+	})
+
+	t.Run("clean-cache", func(t *testing.T) {
+		time.Sleep(time.Second * 1)
+		if err := app.Run([]string{"fan", "--config", configPath, "clean-cache"}); err != nil {
+			t.Fatalf("app failed with error: %s", err)
+		}
+
+		if Exists(t, targetCacheDir) {
+			t.Fatalf("cache dir should not exist: %s", targetCacheDir)
 		}
 	})
 }
