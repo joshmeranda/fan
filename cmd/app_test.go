@@ -136,9 +136,9 @@ func TestMain(t *testing.T) {
 		}
 	})
 
-	t.Run("clean-cache", func(t *testing.T) {
+	t.Run("cache clean", func(t *testing.T) {
 		time.Sleep(time.Second * 1)
-		if err := app.Run([]string{"fan", "--config", configPath, "clean-cache"}); err != nil {
+		if err := app.Run([]string{"fan", "--config", configPath, "cache", "clean"}); err != nil {
 			t.Fatalf("app failed with error: %s", err)
 		}
 

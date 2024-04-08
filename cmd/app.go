@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
+	"path"
 
 	fan "github.com/joshmeranda/fan/pkg"
 	"github.com/joshmeranda/fan/pkg/cache"
@@ -98,9 +100,38 @@ func actionRun(ctx *cli.Context) error {
 	return nil
 }
 
-func actionCleanCache(ctx *cli.Context) error {
+func actionCacheClean(ctx *cli.Context) error {
 	if err := fanCache.Clean(); err != nil {
 		return cli.Exit("failed to clean cache: "+err.Error(), 1)
+	}
+
+	return nil
+}
+
+func actionCacheInvalidate(ctx *cli.Context) error {
+	all := ctx.Bool("all")
+
+	if all {
+		err := os.RemoveAll(config.CacheDir)
+		if err != nil {
+			return fmt.Errorf("failed to delete cached targets: %w", err)
+		}
+
+		return nil
+	}
+
+	if ctx.NArg() == 0 {
+		return cli.Exit("no target specified", 1)
+	}
+
+	target := fan.Target{
+		Url: ctx.Args().First(),
+	}
+
+	targetPath := path.Join(config.CacheDir, fmt.Sprintf("%d", target.Hash()))
+
+	if err := os.RemoveAll(targetPath); err != nil {
+		return fmt.Errorf("failed to delete cached target: %w", err)
 	}
 
 	return nil
@@ -126,7 +157,6 @@ func actionAlias(ctx *cli.Context) error {
 	}
 
 	return nil
-
 }
 
 func App() cli.App {
@@ -136,16 +166,35 @@ func App() cli.App {
 		Commands: []*cli.Command{
 			{
 				Name:   "run",
+				Usage:  "fetch and run a target",
 				Before: setup,
 				Action: actionRun,
 			},
 			{
-				Name:   "clean-cache",
+				Name:   "cache",
 				Before: setup,
-				Action: actionCleanCache,
+				Subcommands: []*cli.Command{
+					{
+						Name:   "clean",
+						Usage:  "check the cache for expired targets and remove them",
+						Action: actionCacheClean,
+					},
+					{
+						Name:   "invalidate",
+						Usage:  "invalidate a target in the cache",
+						Action: actionCacheInvalidate,
+						Flags: []cli.Flag{
+							&cli.BoolFlag{
+								Name:  "all",
+								Usage: "invalidate all targets",
+							},
+						},
+					},
+				},
 			},
 			{
 				Name:   "alias",
+				Usage:  "add an alias for a target url",
 				Before: setup,
 				Action: actionAlias,
 			},
