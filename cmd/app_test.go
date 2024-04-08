@@ -51,6 +51,9 @@ func setup(t *testing.T) (string, string, string) {
 	configPath := fmt.Sprintf("%s.config", t.Name())
 	config := cmd.DefaultConfig()
 	config.CacheDir = fmt.Sprintf("%s.cache", t.Name())
+	config.Aliases = map[string]string{
+		"script": fmt.Sprintf("http://:%d/script", port),
+	}
 
 	data, err := yaml.Marshal(config)
 	if err != nil {
@@ -119,6 +122,12 @@ func TestMain(t *testing.T) {
 
 	t.Run("Cached", func(t *testing.T) {
 		if err := app.Run([]string{"fan", "--config", configPath, "run", fmt.Sprintf("http://%s/script", addr)}); err != nil {
+			t.Fatalf("app failed with error: %s", err)
+		}
+	})
+
+	t.Run("Aliased", func(t *testing.T) {
+		if err := app.Run([]string{"fan", "--config", configPath, "run", "script"}); err != nil {
 			t.Fatalf("app failed with error: %s", err)
 		}
 	})
