@@ -128,6 +128,10 @@ func actionCacheInvalidate(ctx *cli.Context) error {
 		Url: ctx.Args().First(),
 	}
 
+	if unaliased, found := config.Aliases[target.Url]; found {
+		target.Url = unaliased
+	}
+
 	targetPath := path.Join(config.CacheDir, fmt.Sprintf("%d", target.Hash()))
 
 	if err := os.RemoveAll(targetPath); err != nil {
