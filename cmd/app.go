@@ -159,6 +159,44 @@ func actionAlias(ctx *cli.Context) error {
 	return nil
 }
 
+func actionAliasList(ctx *cli.Context) error {
+	maxAliasLen := 0
+	for alias := range config.Aliases {
+		if l := len(alias); l > maxAliasLen {
+			maxAliasLen = l
+		}
+	}
+
+	fmtString := fmt.Sprintf("%% %ds: %%s\n", maxAliasLen)
+
+	for alias, url := range config.Aliases {
+		fmt.Printf(fmtString, alias, url)
+	}
+
+	return nil
+}
+
+func actionAliasRemove(ctx *cli.Context) error {
+	if ctx.NArg() < 1 {
+		return cli.Exit("expected at least 1 alias", 1)
+	}
+
+	for _, alias := range ctx.Args().Slice() {
+		delete(config.Aliases, alias)
+	}
+
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return cli.Exit("failed to marshal config: "+err.Error(), 1)
+	}
+
+	if err := os.WriteFile(ctx.String("config"), data, 0644); err != nil {
+		return cli.Exit("failed to write config: "+err.Error(), 1)
+	}
+
+	return nil
+}
+
 func App() cli.App {
 	return cli.App{
 		Name:  "fan",
@@ -197,6 +235,20 @@ func App() cli.App {
 				Usage:  "add an alias for a target url",
 				Before: setup,
 				Action: actionAlias,
+				Subcommands: []*cli.Command{
+					{
+						Name:   "list",
+						Usage:  "list all aliases",
+						Before: setup,
+						Action: actionAliasList,
+					},
+					{
+						Name:   "remove",
+						Usage:  "remove an alias",
+						Before: setup,
+						Action: actionAliasRemove,
+					},
+				},
 			},
 		},
 		Flags: []cli.Flag{
