@@ -203,10 +203,11 @@ func App() cli.App {
 		Usage: "(F)etch (A)nd (R)un a script / executable",
 		Commands: []*cli.Command{
 			{
-				Name:   "run",
-				Usage:  "fetch and run a target",
-				Before: setup,
-				Action: actionRun,
+				Name:      "run",
+				Usage:     "fetch and run a target",
+				UsageText: "fan run <url|alias>",
+				Before:    setup,
+				Action:    actionRun,
 			},
 			{
 				Name:   "cache",
@@ -218,9 +219,10 @@ func App() cli.App {
 						Action: actionCacheClean,
 					},
 					{
-						Name:   "invalidate",
-						Usage:  "invalidate a target in the cache",
-						Action: actionCacheInvalidate,
+						Name:      "invalidate",
+						Usage:     "invalidate a target in the cache",
+						UsageText: "fan cache invalidate --all\nfan cache invalidate <url|alias>...",
+						Action:    actionCacheInvalidate,
 						Flags: []cli.Flag{
 							&cli.BoolFlag{
 								Name:  "all",
