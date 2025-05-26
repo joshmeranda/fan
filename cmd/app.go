@@ -151,6 +151,14 @@ func actionAliasAdd(ctx *cli.Context) error {
 
 	config.Aliases[alias] = url
 
+	if !ctx.Bool("force") {
+		p, err := fan.Fetch(url)
+		if err != nil {
+			return fmt.Errorf("failed to fetch url '%s': %w", url, err)
+		}
+		defer os.Remove(p)
+	}
+
 	data, err := yaml.Marshal(config)
 	if err != nil {
 		return cli.Exit("failed to marshal config: "+err.Error(), 1)
@@ -257,6 +265,12 @@ func App() cli.App {
 						Usage:  "add an alias",
 						Before: setup,
 						Action: actionAliasAdd,
+						Flags: []cli.Flag{
+							&cli.BoolFlag{
+								Name:  "force",
+								Usage: "do not fail if url cannot be reached",
+							},
+						},
 					},
 				},
 			},
