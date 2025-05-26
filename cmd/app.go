@@ -141,7 +141,7 @@ func actionCacheInvalidate(ctx *cli.Context) error {
 	return nil
 }
 
-func actionAlias(ctx *cli.Context) error {
+func actionAliasAdd(ctx *cli.Context) error {
 	if ctx.NArg() != 2 {
 		return cli.Exit("expected alais and url", 1)
 	}
@@ -237,10 +237,8 @@ func App() cli.App {
 				},
 			},
 			{
-				Name:   "alias",
-				Usage:  "add an alias for a target url",
-				Before: setup,
-				Action: actionAlias,
+				Name:  "alias",
+				Usage: "manage fan aliases",
 				Subcommands: []*cli.Command{
 					{
 						Name:   "list",
@@ -253,6 +251,12 @@ func App() cli.App {
 						Usage:  "remove an alias",
 						Before: setup,
 						Action: actionAliasRemove,
+					},
+					{
+						Name:   "add",
+						Usage:  "add an alias",
+						Before: setup,
+						Action: actionAliasAdd,
 					},
 				},
 			},
