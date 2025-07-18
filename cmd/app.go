@@ -69,6 +69,8 @@ func actionRun(ctx *cli.Context) error {
 
 	_, executable, err := fanCache.GetTargetForUrl(url)
 	if errors.Is(err, cache.ErrNotFound) {
+		log.Debug("target not in cache, pulling...")
+
 		target := fan.Target{
 			Url:             url,
 			InvalidateAfter: config.DefaultInvalidateAfter,
