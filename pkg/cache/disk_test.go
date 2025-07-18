@@ -1,66 +1,78 @@
 package cache_test
 
 import (
-	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	fan "github.com/joshmeranda/fan/pkg"
 	"github.com/joshmeranda/fan/pkg/cache"
+	"github.com/stretchr/testify/assert"
 )
 
-func setup(t *testing.T) (cache.Cache, error) {
-	t.Helper()
-
+func TestAddTarget(t *testing.T) {
 	cacheDir := t.TempDir()
-
-	_, err := os.Create(t.Name())
-	if err != nil {
-		return nil, err
-	}
+	cache := cache.NewDiskCache(cacheDir)
 
 	t.Cleanup(func() {
-		os.Remove(t.Name())
+		if err := os.Remove(cacheDir); err != nil {
+			t.Logf("failed to remove cache directory: %s", err)
+		}
 	})
 
-	return cache.NewDiskCache(cacheDir), nil
-}
+	t.Run("GetNonExistantTarget", func(t *testing.T) {
+		target, executable, err := cache.GetTargetForUrl("http://exapmle.com")
+		assert.Zero(t, target)
+		assert.Zero(t, executable)
+		assert.EqualError(t, err, "not found")
+	})
 
-func TestTarget(t *testing.T) {
-	c, err := setup(t)
-	if err != nil {
-		t.Fatal("failed to setup test: %w", err)
-	}
+	t.Run("CanAddAndGetTarget", func(t *testing.T) {
+		f, err := os.CreateTemp("", strings.Replace(t.Name()+"-executable-*", "/", "-", -1))
+		if err != nil {
+			t.Fatalf("failed to create file: %s", err)
+		}
 
-	target := fan.Target{
-		Url:             "http://example.com",
-		Path:            t.Name(),
-		InvalidateAfter: time.Second * 1, // will be cleaned up after next call to c.Clean()
-	}
+		target := fan.Target{
+			Url:             "https://example.com",
+			InvalidateAfter: time.Hour * 1,
+		}
 
-	_, err = c.GetTargetForUrl(target.Url)
-	if !errors.Is(err, cache.ErrNotFound) {
-		t.Fatalf("expected failure but found: %s", err)
-	}
+		err = cache.AddTarget(target, f.Name())
+		assert.NoError(t, err)
 
-	if err := c.AddTarget(target); err != nil {
-		t.Fatalf("expected success but found: %s", err)
-	}
+		target, executable, err := cache.GetTargetForUrl(target.Url)
 
-	target, err = c.GetTargetForUrl(target.Url)
-	if err != nil {
-		t.Fatalf("expected success but found: %s", err)
-	}
+		assert.WithinDuration(t, time.Now(), target.CachedAt, time.Second*1)
+		target.CachedAt = time.Time{}
 
-	time.Sleep(time.Second)
+		assert.Equal(t, fan.Target{
+			Url:             "https://example.com",
+			InvalidateAfter: time.Hour * 1,
+		}, target)
+		assert.Equal(t, filepath.Join(cacheDir, fmt.Sprint(target.Hash()), "example.com"), executable)
+		assert.NoError(t, err)
+	})
 
-	if err := c.Clean(); err != nil {
-		t.Fatalf("expected success but found: %s", err)
-	}
+	t.Run("FailsToAddDuplicateTarget", func(t *testing.T) {
 
-	_, err = c.GetTargetForUrl(target.Url)
-	if !errors.Is(err, cache.ErrNotFound) {
-		t.Fatalf("expected failure but found: %s", err)
-	}
+		f, err := os.CreateTemp("", strings.Replace(t.Name()+"-executable-*", "/", "-", -1))
+		if err != nil {
+			t.Fatalf("failed to create file: %s", err)
+		}
+
+		target := fan.Target{
+			Url:             "https://example.com",
+			InvalidateAfter: time.Hour * 1,
+		}
+
+		err = cache.AddTarget(target, f.Name())
+		assert.NoError(t, err)
+
+		err = cache.AddTarget(target, f.Name())
+		assert.Error(t, err)
+	})
 }

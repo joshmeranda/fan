@@ -111,7 +111,7 @@ func TestMain(t *testing.T) {
 			t.Fatalf("cache dir does not exist: %s", targetCacheDir)
 		}
 
-		if !Exists(t, path.Join(targetCacheDir, cache.DefaultTargetExecutableFile)) {
+		if !Exists(t, path.Join(targetCacheDir, "script")) {
 			t.Fatalf("executable does not exist in cache")
 		}
 
@@ -127,7 +127,7 @@ func TestMain(t *testing.T) {
 	})
 
 	t.Run("Aliased", func(t *testing.T) {
-		if err := app.Run([]string{"fan", "--config", configPath, "alias", "script", fmt.Sprintf("http://%s/script", addr)}); err != nil {
+		if err := app.Run([]string{"fan", "--config", configPath, "alias", "add", "script", fmt.Sprintf("http://%s/script", addr)}); err != nil {
 			t.Fatalf("failed to add alias: %s", err)
 		}
 

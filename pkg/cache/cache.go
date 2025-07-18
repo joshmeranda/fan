@@ -4,6 +4,7 @@ import (
 	fan "github.com/joshmeranda/fan/pkg"
 )
 
+// todo: add invalidate
 type Cache interface {
 	AddTarget(target fan.Target, executable string) error
 
