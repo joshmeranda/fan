@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path"
 
 	fan "github.com/joshmeranda/fan/pkg"
@@ -17,7 +18,8 @@ var (
 	log *slog.Logger
 
 	fanCache cache.Cache
-	config   Config
+
+	config Config
 )
 
 func setup(ctx *cli.Context) error {
@@ -66,35 +68,36 @@ func actionRun(ctx *cli.Context) error {
 		url = unaliased
 	}
 
-	target, err := fanCache.GetTargetForUrl(url)
+	_, executable, err := fanCache.GetTargetForUrl(url)
 	if errors.Is(err, cache.ErrNotFound) {
-		log.Debug("target not in cache", "url", url)
-
-		target = fan.Target{
+		target := fan.Target{
 			Url:             url,
 			InvalidateAfter: config.DefaultInvalidateAfter,
 		}
 
-		target.Path, err = fan.Fetch(url)
+		tmpExecutable, err := fan.Fetch(url)
 		if err != nil {
-			return cli.Exit("failed to fetch target: "+err.Error(), 1)
-		}
-		defer os.Remove(target.Path)
-
-		if err := fanCache.AddTarget(target); err != nil {
-			return cli.Exit("failed to add target to cache: "+err.Error(), 1)
+			return cli.Exit("failed to fetch executable for target: "+err.Error(), 1)
 		}
 
-		target, err = fanCache.GetTargetForUrl(url)
-		if err != nil {
-			return cli.Exit("failed to get target from cache: "+err.Error(), 1)
+		if err := fanCache.AddTarget(target, tmpExecutable); err != nil {
+			return cli.Exit("failed to add the target to the cache: "+err.Error(), 1)
+		}
+
+		if _, executable, err = fanCache.GetTargetForUrl(url); err != nil {
+			return cli.Exit("failed to get new target from cache: "+err.Error(), 1)
 		}
 	} else if err != nil {
-		return cli.Exit("failed to check cache for target: "+err.Error(), 1)
+		return cli.Exit("failed to get target from cache: "+err.Error(), 1)
 	}
 
-	if err := target.Run(ctx.Context, args); err != nil {
-		return cli.Exit(err, 1)
+	cmd := exec.CommandContext(ctx.Context, executable, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Run(); err != nil {
+		return err
 	}
 
 	return nil

@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	DefaultTargetExecutableFile = "executable"
-	DefaultTargetMetadataFile   = "metadata"
+	DefaultTargetMetadataFile = "metadata"
 )
 
 var (
@@ -37,23 +36,20 @@ func (c *diskCache) pathForTarget(target fan.Target) string {
 }
 
 // AddTarget adds the given target to the cache, using path as the on-disk executable location.
-func (c *diskCache) AddTarget(target fan.Target) error {
+func (c *diskCache) AddTarget(target fan.Target, executable string) error {
 	path := c.pathForTarget(target)
-	executablePath := filepath.Join(path, DefaultTargetExecutableFile)
+	executablePath := filepath.Join(path, target.ExecutableName())
 	metadataPath := filepath.Join(path, DefaultTargetMetadataFile)
 
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		return fmt.Errorf("failed creating cache location for dir: %w", err)
 	}
 
-	if err := os.Rename(target.Path, executablePath); err != nil {
+	if err := os.Rename(executable, executablePath); err != nil {
 		return fmt.Errorf("failed moving target executable to cache: %w", err)
 	}
 
 	target.CachedAt = time.Now().UTC()
-
-	// No need to store path since it is deterministic
-	target.Path = ""
 
 	out, err := yaml.Marshal(target)
 	if err != nil {
@@ -67,39 +63,37 @@ func (c *diskCache) AddTarget(target fan.Target) error {
 	return nil
 }
 
-func (c *diskCache) GetTargetForUrl(u string) (fan.Target, error) {
+func (c *diskCache) GetTargetForUrl(u string) (fan.Target, string, error) {
 	target := fan.Target{Url: u}
 	path := c.pathForTarget(target)
 
-	if exists, err := Exists(path); err != nil {
-		return fan.Target{}, fmt.Errorf("failed checking for cached target: %w", err)
+	if exists, err := PathExists(path); err != nil {
+		return fan.Target{}, "", fmt.Errorf("failed checking for cached target: %w", err)
 	} else if !exists {
-		return fan.Target{}, ErrNotFound
+		return fan.Target{}, "", ErrNotFound
 	}
 
 	metadataPath := filepath.Join(path, DefaultTargetMetadataFile)
 	data, err := os.ReadFile(metadataPath)
 	if err != nil {
-		return fan.Target{}, fmt.Errorf("failed reading target metadata: %w", err)
+		return fan.Target{}, "", fmt.Errorf("failed reading target metadata: %w", err)
 	}
 
 	if err := yaml.Unmarshal(data, &target); err != nil {
-		return fan.Target{}, fmt.Errorf("failed unmarshalling target metadata: %w", err)
+		return fan.Target{}, "", fmt.Errorf("failed unmarshalling target metadata: %w", err)
 	}
 
 	invalidAfter := target.CachedAt.Add(target.InvalidateAfter)
 
 	if time.Now().UTC().After(invalidAfter) {
 		if err := os.RemoveAll(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fan.Target{}, fmt.Errorf("unable to clean target from cache")
+			return fan.Target{}, "", fmt.Errorf("unable to clean target from cache")
 		}
 
-		return fan.Target{}, ErrNotFound
+		return fan.Target{}, "", ErrNotFound
 	}
 
-	target.Path = filepath.Join(path, DefaultTargetExecutableFile)
-
-	return target, nil
+	return target, filepath.Join(path, target.ExecutableName()), nil
 }
 
 func (c *diskCache) cleanTargetDir(dir string) error {

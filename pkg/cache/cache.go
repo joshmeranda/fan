@@ -5,9 +5,10 @@ import (
 )
 
 type Cache interface {
-	AddTarget(target fan.Target) error
+	AddTarget(target fan.Target, executable string) error
 
-	GetTargetForUrl(url string) (fan.Target, error)
+	// GetTargetForUrl returns the target and path to executable for the given url, or an error if one occured.
+	GetTargetForUrl(url string) (fan.Target, string, error)
 
 	Clean() error
 }
@@ -19,12 +20,12 @@ func NewNoopCache() Cache {
 	return &noopCache{}
 }
 
-func (c *noopCache) AddTarget(target fan.Target) error {
+func (c *noopCache) AddTarget(target fan.Target, executable string) error {
 	return nil
 }
 
-func (c *noopCache) GetTargetForUrl(url string) (fan.Target, error) {
-	return fan.Target{}, ErrNotFound
+func (c *noopCache) GetTargetForUrl(url string) (fan.Target, string, error) {
+	return fan.Target{}, "", ErrNotFound
 }
 
 func (c *noopCache) Clean() error {

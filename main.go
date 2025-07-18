@@ -7,6 +7,8 @@ import (
 	"github.com/joshmeranda/fan/cmd"
 )
 
+// todo: cache not getting completely cleaned
+
 func main() {
 	app := cmd.App()
 

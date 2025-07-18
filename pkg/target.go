@@ -1,12 +1,15 @@
 package fan
 
 import (
-	"context"
-	"os"
-	"os/exec"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/cespare/xxhash"
+)
+
+const (
+	defaultTargetExecutableFile = "executable"
 )
 
 type Target struct {
@@ -16,9 +19,24 @@ type Target struct {
 	InvalidateAfter time.Duration `yaml:"invalidate_after"`
 
 	CachedAt time.Time `yaml:"cached_at"`
+}
 
-	// Path is the on-disk path to the target executable.
-	Path string `yaml:"path,omitempty"`
+func (t Target) ExecutableName() string {
+	u, err := url.Parse(t.Url)
+	if err != nil {
+		return defaultTargetExecutableFile
+	}
+
+	switch {
+	case u.Path != "":
+		components := strings.Split(u.Path, "/")
+		return components[len(components)-1]
+	case u.Host != "":
+		components := strings.Split(u.Host, ":")
+		return components[0]
+	default:
+		return defaultTargetExecutableFile
+	}
 }
 
 func (t Target) Hash() uint64 {
@@ -27,18 +45,4 @@ func (t Target) Hash() uint64 {
 	h.Write([]byte(t.Url))
 
 	return h.Sum64()
-}
-
-func (t Target) Run(ctx context.Context, args []string) error {
-	// todo: move this into target (better separation of concerns)
-	cmd := exec.CommandContext(ctx, t.Path, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-
-	return nil
 }
