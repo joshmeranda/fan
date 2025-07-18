@@ -11,6 +11,8 @@ type Cache interface {
 	// GetTargetForUrl returns the target and path to executable for the given url, or an error if one occured.
 	GetTargetForUrl(url string) (fan.Target, string, error)
 
+	InvalidateUrl(url string) error
+
 	Clean() error
 }
 
@@ -27,6 +29,10 @@ func (c *noopCache) AddTarget(target fan.Target, executable string) error {
 
 func (c *noopCache) GetTargetForUrl(url string) (fan.Target, string, error) {
 	return fan.Target{}, "", ErrNotFound
+}
+
+func (c *noopCache) InvalidateUrl(string) error {
+	return nil
 }
 
 func (c *noopCache) Clean() error {

@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"path"
 
 	fan "github.com/joshmeranda/fan/pkg"
 	"github.com/joshmeranda/fan/pkg/cache"
@@ -131,14 +130,13 @@ func actionCacheInvalidate(ctx *cli.Context) error {
 		Url: ctx.Args().First(),
 	}
 
+	url := ctx.Args().First()
 	if unaliased, found := config.Aliases[target.Url]; found {
-		target.Url = unaliased
+		url = unaliased
 	}
 
-	targetPath := path.Join(config.CacheDir, fmt.Sprintf("%d", target.Hash()))
-
-	if err := os.RemoveAll(targetPath); err != nil {
-		return fmt.Errorf("failed to delete cached target: %w", err)
+	if err := fanCache.InvalidateUrl(url); err != nil {
+		return cli.Exit(fmt.Sprintf("could not invalidate '%s': %s", url, err), 1)
 	}
 
 	return nil

@@ -96,6 +96,18 @@ func (c *diskCache) GetTargetForUrl(u string) (fan.Target, string, error) {
 	return target, filepath.Join(path, target.ExecutableName()), nil
 }
 
+func (c *diskCache) InvalidateUrl(url string) error {
+	path := c.pathForTarget(fan.Target{
+		Url: url,
+	})
+
+	if err := os.RemoveAll(path); err != nil {
+		return fmt.Errorf("could not remove target from disck: %w", err)
+	}
+
+	return nil
+}
+
 func (c *diskCache) cleanTargetDir(dir string) error {
 	metadataPath := filepath.Join(dir, DefaultTargetMetadataFile)
 
