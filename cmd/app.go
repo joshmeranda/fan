@@ -212,6 +212,28 @@ func actionAliasRemove(ctx *cli.Context) error {
 	return nil
 }
 
+func actionWhereis(ctx *cli.Context) error {
+	if ctx.NArg() == 0 {
+		return cli.Exit("no target specified", 1)
+	}
+
+	raw := ctx.Args().First()
+	url := raw
+
+	if unaliased, found := config.Aliases[raw]; found {
+		url = unaliased
+	}
+
+	_, executable, err := fanCache.GetTargetForUrl(url)
+	if err != nil {
+		return fmt.Errorf("could not generate target for url: %w", err)
+	}
+
+	fmt.Println(executable)
+
+	return nil
+}
+
 func App() cli.App {
 	return cli.App{
 		Name:  "fan",
@@ -276,6 +298,12 @@ func App() cli.App {
 						},
 					},
 				},
+			},
+			{
+				Name:   "whereis",
+				Usage:  "view the path to the file that is downloaded",
+				Before: setup,
+				Action: actionWhereis,
 			},
 		},
 		Flags: []cli.Flag{
