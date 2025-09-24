@@ -226,7 +226,7 @@ func actionWhereis(ctx *cli.Context) error {
 
 	_, executable, err := fanCache.GetTargetForUrl(url)
 	if err != nil {
-		return fmt.Errorf("could not generate target for url: %w", err)
+		return fmt.Errorf("nothing in cache for '%s'", raw)
 	}
 
 	fmt.Println(executable)
