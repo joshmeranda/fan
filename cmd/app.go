@@ -6,12 +6,15 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path"
 
 	fan "github.com/joshmeranda/fan/pkg"
 	"github.com/joshmeranda/fan/pkg/cache"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
 )
+
+const ENV_CURRENT_TARGET_DIR = "CURRENT_TARGET_DIR"
 
 var (
 	log *slog.Logger
@@ -48,6 +51,12 @@ func setup(ctx *cli.Context) error {
 		fanCache = cache.NewNoopCache()
 	} else {
 		fanCache = cache.NewDiskCache(config.CacheDir)
+	}
+
+	if dir := os.Getenv(ENV_CURRENT_TARGET_DIR); dir != "" {
+		store := cache.NewDiskCache(dir)
+
+		fanCache = cache.NewNestedCache(store, fanCache)
 	}
 
 	return nil
@@ -96,6 +105,13 @@ func actionRun(ctx *cli.Context) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
+
+	var currentTargetDir string
+	if currentTargetDir = os.Getenv(ENV_CURRENT_TARGET_DIR); currentTargetDir == "" {
+		currentTargetDir = path.Dir(executable)
+	}
+
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", ENV_CURRENT_TARGET_DIR, currentTargetDir))
 
 	if err := cmd.Run(); err != nil {
 		return err
