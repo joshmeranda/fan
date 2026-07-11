@@ -4,7 +4,7 @@ import (
 	fan "github.com/joshmeranda/fan/pkg"
 )
 
-// todo: add invalidate
+// Cache is the mechanism used to store and server
 type Cache interface {
 	AddTarget(target fan.Target, executable string) error
 
@@ -12,6 +12,8 @@ type Cache interface {
 	GetTargetForUrl(url string) (fan.Target, string, error)
 
 	InvalidateUrl(url string) error
+
+	List() ([]fan.Target, error)
 
 	Clean() error
 }
@@ -33,6 +35,10 @@ func (c *noopCache) GetTargetForUrl(url string) (fan.Target, string, error) {
 
 func (c *noopCache) InvalidateUrl(string) error {
 	return nil
+}
+
+func (c *noopCache) List() ([]fan.Target, error) {
+	return make([]fan.Target, 0), nil
 }
 
 func (c *noopCache) Clean() error {

@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"slices"
+	"time"
 
 	fan "github.com/joshmeranda/fan/pkg"
 	"github.com/joshmeranda/fan/pkg/cache"
@@ -19,6 +21,12 @@ var (
 	fanCache cache.Cache
 
 	config Config
+)
+
+const (
+	cacheEntryValid    = "✓"
+	cacheEntryExpired  = "x"
+	cacheEntryNotFound = "?"
 )
 
 func setup(ctx *cli.Context) error {
@@ -140,6 +148,64 @@ func actionCacheInvalidate(ctx *cli.Context) error {
 	if err := fanCache.InvalidateUrl(url); err != nil {
 		return cli.Exit(fmt.Sprintf("could not invalidate '%s': %s", url, err), 1)
 	}
+
+	return nil
+}
+
+// todo: would love to sort this by valididty (valid, then expired, then not found)
+func actionCacheList(ctx *cli.Context) error {
+	targets, err := fanCache.List()
+	if err != nil {
+		return fmt.Errorf("failed to fetch list of cached targets: %w", err)
+	}
+
+	tbl := NewTable([]header{
+		{
+			name:  "Url",
+			width: 80,
+		},
+		{
+			name:  "alias",
+			width: 20,
+		},
+		{
+			name:  "valid",
+			width: 5,
+		},
+	})
+
+	for _, t := range targets {
+		var alias string
+		for a, u := range config.Aliases {
+			if u == t.Url {
+				alias = a
+				break
+			}
+		}
+
+		validFor := cacheEntryExpired
+		if time.Until(t.CachedAt.Add(t.InvalidateAfter)) > 0 {
+			validFor = cacheEntryValid
+		}
+
+		if err := tbl.addRow([]string{t.Url, alias, validFor}); err != nil {
+			return fmt.Errorf("failed to gather target list: %w", err)
+		}
+	}
+
+	for alias, url := range config.Aliases {
+		found := slices.ContainsFunc(targets, func(t fan.Target) bool {
+			return url == t.Url
+		})
+
+		if !found {
+			if err := tbl.addRow([]string{url, alias, cacheEntryNotFound}); err != nil {
+				return fmt.Errorf("failed to gather target list: %w", err)
+			}
+		}
+	}
+
+	tbl.display()
 
 	return nil
 }
@@ -266,6 +332,11 @@ func App() cli.App {
 								Usage: "invalidate all targets",
 							},
 						},
+					},
+					{
+						Name:   "list",
+						Usage:  "list the status of all cache entries including aliases which may not be cached yet",
+						Action: actionCacheList,
 					},
 				},
 			},

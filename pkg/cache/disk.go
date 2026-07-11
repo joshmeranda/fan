@@ -31,6 +31,7 @@ func NewDiskCache(cacheDir string) Cache {
 	}
 }
 
+// todo: should be pathForUrl NOT pathForTarget (also does not need a receiver)
 func (c *diskCache) pathForTarget(target fan.Target) string {
 	return path.Join(c.CacheDir, fmt.Sprintf("%d", target.Hash()))
 }
@@ -132,15 +133,46 @@ func (c *diskCache) cleanTargetDir(dir string) error {
 	return nil
 }
 
+func (c *diskCache) List() ([]fan.Target, error) {
+	entries, err := os.ReadDir(c.CacheDir)
+	if err != nil && err.(*os.PathError).Err.(syscall.Errno) != syscall.ENOENT {
+		return nil, fmt.Errorf("failed to reach cache directory: %w", err)
+	}
+
+	targets := make([]fan.Target, 0, len(entries))
+
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+
+		metadataPath := filepath.Join(c.CacheDir, e.Name(), DefaultTargetMetadataFile)
+
+		data, err := os.ReadFile(metadataPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read targe metadata: %w", err)
+		}
+
+		var target fan.Target
+		if err := yaml.Unmarshal(data, &target); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+		}
+
+		targets = append(targets, target)
+	}
+
+	return targets, nil
+}
+
 func (c *diskCache) Clean() error {
-	files, err := os.ReadDir(c.CacheDir)
+	entries, err := os.ReadDir(c.CacheDir)
 	if err != nil && err.(*os.PathError).Err.(syscall.Errno) != syscall.ENOENT {
 		return fmt.Errorf("failed to read cache directory: %w", err)
 	}
 
-	for _, file := range files {
-		if file.IsDir() {
-			targetPath := filepath.Join(c.CacheDir, file.Name())
+	for _, e := range entries {
+		if e.IsDir() {
+			targetPath := filepath.Join(c.CacheDir, e.Name())
 
 			if err := c.cleanTargetDir(targetPath); err != nil {
 				return fmt.Errorf("failed to clean target dir: %w", err)
