@@ -29,6 +29,19 @@ const (
 	cacheEntryNotFound = "?"
 )
 
+func valididtyToInt(s string) int {
+	switch s {
+	case cacheEntryValid:
+		return 2
+	case cacheEntryExpired:
+		return 1
+	case cacheEntryNotFound:
+		return 0
+	}
+
+	return -1
+}
+
 func setup(ctx *cli.Context) error {
 	log = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
@@ -172,6 +185,11 @@ func actionCacheList(ctx *cli.Context) error {
 			name:  "valid",
 			width: 5,
 		},
+	}, func(lhsRow, rhsRow []any) int {
+		lhs := lhsRow[2].(string)
+		rhs := rhsRow[2].(string)
+
+		return valididtyToInt(rhs) - valididtyToInt(lhs)
 	})
 
 	for _, t := range targets {

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -18,9 +19,13 @@ type table struct {
 	format  string
 	headers []header
 	rows    [][]any
+
+	sorter func([]any, []any) int
 }
 
-func NewTable(headers []header) *table {
+// NewTable returns an instance of table. If sorter != nil, then the output will be sorted before each display.
+// todo: sort at insert time
+func NewTable(headers []header, sorter func([]any, []any) int) *table {
 	formats := make([]string, len(headers))
 	for i, h := range headers {
 		formats[i] = fmt.Sprintf("%%%ds", h.width)
@@ -30,6 +35,7 @@ func NewTable(headers []header) *table {
 		headers: headers,
 		rows:    make([][]any, 0),
 		format:  strings.Join(formats, " ") + "\n",
+		sorter:  sorter,
 	}
 }
 
@@ -54,6 +60,10 @@ func (t *table) addRow(row []string) error {
 }
 
 func (t *table) display() {
+	if t.sorter != nil {
+		slices.SortFunc(t.rows, t.sorter)
+	}
+
 	s := make([]any, 0, len(t.headers))
 	for _, h := range t.headers {
 		s = append(s, h.name)
