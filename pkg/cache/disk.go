@@ -29,7 +29,7 @@ func moveFile(srcPath string, dstPath string) error {
 	}
 	defer src.Close()
 
-	dst, err := os.Create(dstPath)
+	dst, err := os.OpenFile(dstPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0766)
 	if err != nil {
 		return err
 	}
