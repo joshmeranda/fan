@@ -3,6 +3,7 @@ package cache
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,6 +21,30 @@ const (
 var (
 	ErrNotFound = fmt.Errorf("not found")
 )
+
+func moveFile(srcPath string, dstPath string) error {
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	if _, err = io.Copy(dst, src); err != nil {
+		return err
+	}
+
+	if err = os.Remove(srcPath); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 type diskCache struct {
 	CacheDir string
@@ -46,7 +71,7 @@ func (c *diskCache) AddTarget(target fan.Target, executable string) error {
 		return fmt.Errorf("failed creating cache location for dir: %w", err)
 	}
 
-	if err := os.Rename(executable, executablePath); err != nil {
+	if err := moveFile(executable, executablePath); err != nil {
 		return fmt.Errorf("failed moving target executable to cache: %w", err)
 	}
 
